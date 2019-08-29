@@ -1,5 +1,5 @@
 # Comparing_Graph_Embeddings
-Code and examples for computing divengence score to compare graph embeddings
+Code and examples for computing divergence scores to compare graph embeddings
 
 Details of this framework can be found in: 
 B. Kaminski, P. Pralat and F. Théberge, An Unsupervised Framework for Comparing Graph Embeddings, pre-print, arXiv:1906.04562 (2019).  https://arxiv.org/abs/1906.04562
@@ -22,7 +22,7 @@ gcc GED.c -o GED -lm -O3
 Format:
 
 ```
-./GED -g edgelist_file -c clusters_file -E embedding_file [-a max_alpha -s epsilon_step -d delta -v]
+./GED -g edgelist_file -c clusters_file -e embedding_file [-a max_alpha -s epsilon_step -d delta -v]
 
 ## required flags:
 -g: the edgelist (1 per line, whitespace separated, no weights)
@@ -39,33 +39,39 @@ Format:
 
 The embeddings can be visualized in the supplied notebook.  
 
-The embeddings were obtained with the node2vec, Verse and LINE algorithms.  
-We do not explicitely identified which embedding come from which algorithm, as this is not 
+The embeddings were obtained with the node2vec, Verse and LINE algorithms (references below)  
+We do not explicitely identify which embedding come from which algorithm, as this is not 
 intended as a comparison study of those algorithms, just an illustration of the framework.
 
-The clusterings were obtained with the ECG algorithms (references below).  
+The clusterings were obtained with the ECG algorithm (reference below).  
 The code can be found here: https://github.com/ftheberge/Ensemble-Clustering-for-Graphs
 
 ```
-./GED -g Data/karate.edgelist -c Data/karate.ecg -E Data/karate.embedding.1
+./GED -g Data/karate.edgelist -c Data/karate.ecg -e Data/karate.embedding.1
 Divergence: 8.382983e-04
-./GED -g Data/karate.edgelist -c Data/karate.ecg -E Data/karate.embedding.2
+
+./GED -g Data/karate.edgelist -c Data/karate.ecg -e Data/karate.embedding.2
 Divergence: 1.754249e-03
-./GED -g Data/karate.edgelist -c Data/karate.ecg -E Data/karate.embedding.3
+
+./GED -g Data/karate.edgelist -c Data/karate.ecg -e Data/karate.embedding.3
 Divergence: 1.641147e-02
 
-./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -E Data/lfr15.embedding.1
+./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -e Data/lfr15.embedding.1
 Divergence: 3.881068e-04
-./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -E Data/lfr15.embedding.2
+
+./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -e Data/lfr15.embedding.2
 Divergence: 7.880778e-03
-./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -E Data/lfr15.embedding.3
+
+./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -e Data/lfr15.embedding.3
 Divergence: 1.273756e-02
 
-./GED -g Data/football.edgelist -c Data/football.ecg -E Data/football.embedding.1
+./GED -g Data/football.edgelist -c Data/football.ecg -e Data/football.embedding.1
 Divergence: 2.881708e-03
-./GED -g Data/football.edgelist -c Data/football.ecg -E Data/football.embedding.2
+
+./GED -g Data/football.edgelist -c Data/football.ecg -e Data/football.embedding.2
 Divergence: 1.208909e-02
-./GED -g Data/football.edgelist -c Data/football.ecg -E Data/football.embedding.3
+
+./GED -g Data/football.edgelist -c Data/football.ecg -e Data/football.embedding.3
 Divergence: 2.737682e-02
 ```
 
@@ -118,8 +124,8 @@ Clusters: one value per line in the numerical order of the nodes
 ## Example of embedding file
 
 Same format as with node2vec embedding:  
-line 1:   #nodes dimension(d) 
-lines 2+: node <d-long embedding vector>  
+line 1:   #nodes dimension(d)   
+lines 2+: node d-long_embedding_vector  
 
 Nodes are 0-based or 1-based in any order  
 
@@ -143,7 +149,7 @@ Zachary, W. W. An information flow model for conflict and fission in small group
 LFR Generator:
 Lancichinetti, A., Fortunato, S. & Radicchi, F. Benchmark graphs for testing community detection algorithms. Physical Review E 78, 046110 (2008).
 
-ECG (ensemble graph clustering):
+ECG (ensemble clustering for graphs):
 V. Poulin and F. Théberge, Ensemble Clustering for Graphs: Comparison and Applications, Applied Network Science vol. 4, no. 51 (2019).
 
 Original Chung-Lu model:
