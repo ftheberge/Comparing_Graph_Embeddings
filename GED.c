@@ -7,6 +7,7 @@
 #include <math.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 #define min(x, y) (((x) < (y)) ? (x) : (y))
@@ -94,8 +95,12 @@ int main(int argc, char *argv[]) {
   double epsilon=0.1, delta=0.001, AlphaMax=10.0, AlphaStep=0.25; // default parameter values
   
   // randomized start
-  srand48((long int)time(NULL));
-  
+#ifdef WIN32
+  srand((long)time(NULL));
+#else
+  srand48((long)time(NULL));
+#endif
+
   // read in edgelist and communities filenames
   while ((opt = getopt(argc, argv, "g:c:e:d:va:s:")) != -1) {
     switch (opt) {
