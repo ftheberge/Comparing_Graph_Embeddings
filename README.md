@@ -25,7 +25,7 @@ Pre-print, arXiv:1906.04562 (2019).  https://arxiv.org/abs/1906.04562
 
 To be presented at WAW2020: https://math.ryerson.ca/waw2020 with publication in Springer LNCS.
 
-# Compiling and Running the Code for the Original Framework 
+# Compiling and Running the Original Framework 
 
 GED (Graph Embedding Divergence)
 
@@ -162,7 +162,7 @@ Nodes are 0-based or 1-based in any order
 ...
 ```
 
-# Compiling and Running the Code for the Landmark-Based Framework 
+# Compiling and Running the Landmark-Based Framework 
 
 To be completed soon.
 
