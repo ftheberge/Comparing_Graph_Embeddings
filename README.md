@@ -15,9 +15,7 @@ on graphs with millions of vertices.
 B. Kaminski, P. Pralat and F. Théberge, An unsupervised framework for comparing graph embeddings,
 Journal of Complex Networks, cnz043, https://doi.org/10.1093/comnet/cnz043, Published: 28 November 2019.
 
-Paper: https://academic.oup.com/comnet/advance-article/doi/10.1093/comnet/cnz043/5645186?guestAccessKey=6c6efa8a-f322-4c00-aa26-7f067fec7eaf
-
-Abstract: https://academic.oup.com/comnet/advance-article-abstract/doi/10.1093/comnet/cnz043/5645186
+Full paper: https://academic.oup.com/comnet/advance-article/doi/10.1093/comnet/cnz043/5645186?guestAccessKey=6c6efa8a-f322-4c00-aa26-7f067fec7eaf
 
 Pre-print, arXiv:1906.04562 (2019).  https://arxiv.org/abs/1906.04562
 
