@@ -1,10 +1,31 @@
-# Comparing_Graph_Embeddings
-Code and examples for computing divergence scores to compare graph embeddings
+# Comparing Graph Embeddings
 
-Details of this framework can be found in: 
-B. Kaminski, P. Pralat and F. Théberge, An Unsupervised Framework for Comparing Graph Embeddings, pre-print, arXiv:1906.04562 (2019).  https://arxiv.org/abs/1906.04562
+We propose a framework to compare the quality of graph embeddings obtained with
+different algorithms and/or different choices of parameters. To that effect, we
+use a new divergence score based on a generalization of the well-know Chung-Lu
+random graph model.
 
-# Compiling and Running the Code
+This repository contains the code and some examples for computing the divergence scores
+for two versions of our framework (1) the original version, which is suitable for graphs
+with thousands of vertices, and (2) a scalable, landmark-based version, which should be used
+on graphs with millions of vertices.
+
+## Details of the original framework can be found in: 
+
+B. Kaminski, P. Pralat and F. Théberge, An unsupervised framework for comparing graph embeddings,
+Journal of Complex Networks, cnz043, https://doi.org/10.1093/comnet/cnz043, Published: 28 November 2019.
+
+Paper: https://academic.oup.com/comnet/advance-article/doi/10.1093/comnet/cnz043/5645186?guestAccessKey=6c6efa8a-f322-4c00-aa26-7f067fec7eaf
+
+Abstract: https://academic.oup.com/comnet/advance-article-abstract/doi/10.1093/comnet/cnz043/5645186
+
+Pre-print, arXiv:1906.04562 (2019).  https://arxiv.org/abs/1906.04562
+
+## Details of the scalable, landmark-based version can be found in:
+
+To be presented at WAW2020: https://math.ryerson.ca/waw2020 with publication in Springer LNCS.
+
+# Compiling and Running the Code for the Original Framework 
 
 GED (Graph Embedding Divergence)
 
@@ -141,10 +162,17 @@ Nodes are 0-based or 1-based in any order
 ...
 ```
 
-# References
+# Compiling and Running the Code for the Landmark-Based Framework 
+
+To be completed soon.
+
+# Other References
 
 Karate dataset:
 Zachary, W. W. An information flow model for conflict and fission in small groups. Journal of Anthropological Research 33, 452–473  (1977)
+
+ABCD Generator:
+B. Kaminski, P. Pralat and F. Théberge, Artificial Benchmark for Community Detection (ABCD): Fast Random Graph Model with Community Structure, pre-print, arXiv 2002:00843 (2020). https://arxiv.org/abs/2002.00843
 
 LFR Generator:
 Lancichinetti, A., Fortunato, S. & Radicchi, F. Benchmark graphs for testing community detection algorithms. Physical Review E 78, 046110 (2008).
