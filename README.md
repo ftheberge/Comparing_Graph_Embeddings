@@ -1,3 +1,7 @@
+# Scalable Landmark-based version
+
+Can be found here: https://github.com/KrainskiL/CGE.jl
+
 # Comparing Graph Embeddings
 
 We propose a framework to compare the quality of graph embeddings obtained with
@@ -159,10 +163,6 @@ Nodes are 0-based or 1-based in any order
 28 1.14632 -2.20708 4.11004 0.338067 -2.86409 1.01202 -0.485711 -3.50161
 ...
 ```
-
-# Compiling and Running the Landmark-Based Framework 
-
-To be completed soon.
 
 # Other References
 
