@@ -80,6 +80,10 @@ double JS(double *vC, double *vB, int *vI, int internal, int vLen) {
   return(f);
 }
 
+double myProb(double* P, int n, int i, int j) {
+  return(P[n*i-i*(i+1)/2+j-i-1]);
+}
+
 // ******************************************************************************
 
 int main(int argc, char *argv[]) {
@@ -272,7 +276,7 @@ int main(int argc, char *argv[]) {
   }
   fclose(fp);
   if(verbose) printf("Embedding has %d dimensions\n",dim);
-      
+
   // 3.0 set up loop over alpha's      
   for(alpha=0; alpha<=AlphaMax+delta; alpha+=AlphaStep) {
     
@@ -333,16 +337,13 @@ int main(int argc, char *argv[]) {
     
     
     // 3.3 Compute B-vector given P[] and comm[] 
-    double myProb(int i, int j) {
-      return(P[n*i-i*(i+1)/2+j-i-1]);
-    }
     for(i=0;i<vect_len;i++) vect_B[i] = 0.0;
     for(i=0;i<(n-1);i++) {
       for(j=i+1;j<n;j++) {
 	k = min(comm[i],comm[j]);
 	l = max(comm[i],comm[j]);
 	m = n_parts*k-k*(k-1)/2+l-k;
-	vect_B[m] += myProb(i,j);
+	vect_B[m] += myProb(P,n,i,j);
       }
     }
 
