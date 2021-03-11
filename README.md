@@ -25,7 +25,7 @@ Pre-print, arXiv:1906.04562 (2019).  https://arxiv.org/abs/1906.04562
 
 ## Details of the scalable, landmark-based version can be found in:
 
-To be presented at WAW2020: https://math.ryerson.ca/waw2020 with publication in Springer LNCS.
+https://doi.org/10.1007/978-3-030-48478-1_4
 
 # Compiling and Running the Original Framework 
 
@@ -67,7 +67,7 @@ We do not explicitely identify which embedding come from which algorithm, as thi
 intended as a comparison study of those algorithms, just an illustration of the framework.
 
 The clusterings were obtained with the ECG algorithm (reference below).  
-The code can be found here: https://github.com/ftheberge/Ensemble-Clustering-for-Graphs
+The code can be found here: https://github.com/ftheberge/graph-partition-and-measures
 
 ```
 ./GED -g Data/karate.edgelist -c Data/karate.ecg -e Data/karate.embedding.1
