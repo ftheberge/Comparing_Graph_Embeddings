@@ -1,5 +1,7 @@
 // gcc GED.c -o GED -lm -O3
 
+// Unidirected graph version
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
