@@ -1,4 +1,6 @@
-// gcc GED.c -o GED -lm -O3
+// gcc GED_directed.c -o GED_directed -lm -O3
+
+// Differences with GED.c are commented with 'DIRECTED' indicator
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,20 +82,23 @@ double JS(double *vC, double *vB, int *vI, int internal, int vLen) {
   return(f);
 }
 
+// DIRECTED -- length is now n(n-1), so mapping from (i,j) to k differs.
+// Order of P(i,j)'s is: (0,1) ... (0,n-1),(1,0),(1,2), ...
 double myProb(double* P, int n, int i, int j) {
-  return(P[n*i-i*(i+1)/2+j-i-1]);
+  return(P[(n-1)*i+j-(int)(j>i)]);
 }
 
 // ******************************************************************************
 
 int main(int argc, char *argv[]) {
 
-  int a,b,i,j,k,l,m,n_edge,v_min,v_max,c_min,c_max,n,vect_len,n_parts,dim,p_len;
+  int a, b, i, j, k, l, m, n_edge, v_min, v_max, c_min, c_max, n, vect_len, n_parts, dim, p_len;
   int emb_dim, emb_param;
-  double f,lo,hi,best_div,best_alpha,alpha,diff,move,sm;
+  double f, lo, hi, best_div, best_alpha, alpha, diff, move, sm;
   FILE *fp, *fpa;
-  int **edge, *comm, *degree;
-  double **embed,*P,*D,*T,*S, *vect_C, *vect_B, *vect_p, *vect_q, *vect_m, *Q;
+  int **edge, *comm, *deg_in, *deg_out;
+  // DIRECTED -- from T and S to Tin, Tout, Sin, Sout
+  double **embed, *P, *D, *Tin, *Tout, *Sin, *Sout, *vect_C, *vect_B, *vect_p, *vect_q, *vect_m, *Q; 
   char str[256], *fn_edges, *fn_comm, *fn_embed;
   int opt, verbose=0, *vect_I, entropy=0;  
   double epsilon=0.1, delta=0.001, AlphaMax=10.0, AlphaStep=0.25; // default parameter values
@@ -129,7 +134,7 @@ int main(int argc, char *argv[]) {
     case 'v':
       verbose=1;
       break;
-    case 'E':
+    case 'E': // 'hidden' option, will return list of probas and entropy for anomaly detection
       entropy=1;
       break;
     default: /* '?' */
@@ -151,6 +156,7 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
   n_edge = 0;
+
   // count number of edges and keep track of min/max vertex
   v_max = -1;
   v_min = INT_MAX;
@@ -168,6 +174,7 @@ int main(int argc, char *argv[]) {
   for(i=0; i<n_edge; i++)
     edge[i] = malloc(sizeof(int)*2);
   i = 0;
+  // no weight, just 2 columns
   while (fscanf(fp,"%d %d",&a,&b) == 2) {
     edge[i][0] = a-v_min;
     edge[i++][1] = b-v_min;
@@ -205,42 +212,54 @@ int main(int argc, char *argv[]) {
   if(verbose) printf("Communities mapped to [%d,%d].\n",c_min,c_max); 
 
   // 1.3 Compute degrees
-  degree = malloc(sizeof(int)*n);
-  for(i=0; i<n; i++) degree[i]=0;
+  // DIRECTED -- need deg_in and deg_out instead of just degrees (recall that some can now be zero)
+  deg_in = malloc(sizeof(int)*n);
+  deg_out = malloc(sizeof(int)*n);    
+  for(i=0; i<n; i++) {
+    deg_in[i]=0;
+    deg_out[i]=0;
+  }
   for(i=0; i<n_edge; i++) {
-    degree[edge[i][0]]++;
-    degree[edge[i][1]]++;
+    deg_out[edge[i][0]]++;
+    deg_in[edge[i][1]]++;
   }
 
   // 1.4 Compute C-vector (and allocate all vectors while we are here)
+  // DIRECTED -- longer vectors since we consdier all ORDERED pairs of parts
   n_parts = c_max+1;
-  vect_len = n_parts*(n_parts+1)/2;
+  vect_len = n_parts*(n_parts);
   vect_C = malloc(sizeof(double)*vect_len);
   vect_B = malloc(sizeof(double)*vect_len);
 
   for(i=0;i<vect_len;i++) vect_C[i]=0.0;
   for(i=0;i<n_edge;i++) {
-    j = min(comm[edge[i][0]],comm[edge[i][1]]);
-    k = max(comm[edge[i][0]],comm[edge[i][1]]);
-    l = (j*n_parts) - (j*(j-1)/2) + (k-j);
+    // DIRECTED -- we use order: (0,0),(0,1) ... (0,n_parts-1),(1,0),(1,1), ...
+    j = comm[edge[i][0]];
+    k = comm[edge[i][1]];
+    l = (j*n_parts) + k;
     vect_C[l]+=1.0;
   }
   
-  // indicator - internal to a community
+  // indicator - internal to a community?
   vect_I = malloc(sizeof(int)*vect_len);
   for(i=0;i<vect_len;i++) vect_I[i]=0;
   j=0;
   for(i=0;i<n_parts;i++) {
     vect_I[j]=1;
-    j+=(n_parts-i);
+    j+=(n_parts+1);
   }
 
   // allocate memory for next steps
-  T = malloc(sizeof(double)*n);
-  S = malloc(sizeof(double)*n);
-  p_len = (n-2)*(n+1)/2+1;
+  // DIRECTED -- replace T, S with 2 copies: Tin and Tout, Sin and Sout
+  Tin = malloc(sizeof(double)*n);
+  Sin = malloc(sizeof(double)*n);
+  Tout = malloc(sizeof(double)*n);
+  Sout = malloc(sizeof(double)*n);
+  // DIRECTED -- D remains with same length since Dij == Dji
+  p_len = (n-1)*(n)/2;
   D = malloc(sizeof(double)*p_len);
-  P = malloc(sizeof(double)*p_len);
+  // DIRECTED -- P needs twice the length 
+  P = malloc(sizeof(double)*(2*p_len));
   
   // 2. Read embedding in node2vec format:
   //    first line has number_vertices and dimensions
@@ -284,6 +303,7 @@ int main(int argc, char *argv[]) {
   for(alpha=AlphaStep; alpha<=AlphaMax+delta; alpha+=AlphaStep) {
     
     // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
+    // DIRECTED -- Dij == Dji so no change here
     lo = 10000; hi=0;
     for(i=0;i<(n-1);i++) {
       for(j=i+1;j<n;j++) {	
@@ -303,53 +323,88 @@ int main(int argc, char *argv[]) {
       }
     }
     
-
     // 3.2 Learn GCL model numerically
 
     // 3.2.1 LOOP: compute T[] given: degree[] D[] epsilon delta
-    for(i=0;i<n;i++) T[i]=1.0;
+    // DIRECTED -- use Tin, Tout, deg_in, deg_out, Sin, Sout
+    // for D, recall that Dij == Dji; we stored Dij for all i<j
+    // Initialize Tin/Tout to 0 if degree is 0 in which case we get Sin or Sout == 0 so we should NOT update Tin or Tout to avoid div by 0  
+    for(i=0;i<n;i++) {
+      if(deg_in[i]==0) {
+	Tin[i]=0.0;
+      }
+      else {
+	Tin[i]=1.0;
+      }
+      if(deg_out[i]==0) {
+	Tout[i]=0.0;
+      }
+      else {
+	Tout[i]=1.0;
+      }
+    }
+    
     diff = 1.0;
-    lo = 0;
     while(diff > delta) { // stopping criterion
-      for(i=0;i<n;i++) S[i]=0.0;
+      for(i=0;i<n;i++) {
+	Sin[i]=0.0;
+	Sout[i]=0.0;
+      }
       k = 0;
+      // DIRECTED -- loop over all i<j and do BOTH orders (i,j) and (j,i)
       for(i=0;i<(n-1);i++) {
 	for(j=i+1;j<n;j++) {
-	  S[i] += (T[i]*T[j]*D[k]);
-	  S[j] += (T[j]*T[i]*D[k]);
+	  Sin[i] += (Tin[i]*Tout[j]*D[k]);
+	  Sin[j] += (Tin[j]*Tout[i]*D[k]);
+	  Sout[i] += (Tout[i]*Tin[j]*D[k]);
+	  Sout[j] += (Tout[j]*Tin[i]*D[k]);
 	  k++;
 	}
       }
       f = 0.0;
+
+      // DIRECTED -- do not apply move if degree is zero
       for(i=0;i<n;i++) {
-	move = epsilon*T[i]*(degree[i]/S[i]-1.0); 
-	T[i]+=move;
-	f = max(f,fabs(degree[i]-S[i])); // convergence w.r.t. degrees
+	if(deg_in[i]>0){
+	  move = epsilon*Tin[i]*(deg_in[i]/Sin[i]-1.0); 
+	  Tin[i]+=move;
+	  f = max(f,fabs(deg_in[i]-Sin[i])); // convergence w.r.t. degrees
+	}
+	if(deg_out[i]>0){
+	  move = epsilon*Tout[i]*(deg_out[i]/Sout[i]-1.0); 
+	  Tout[i]+=move;
+	  f = max(f,fabs(deg_out[i]-Sout[i])); // convergence w.r.t. degrees
+	}
       }
       diff = f;
-      lo++;
     }
 
     // 3.2.2 Compute probas P[]
-    for(i=0;i<(n-1);i++) {
-      for(j=i+1;j<n;j++) {
-	k = n*i-i*(i+1)/2+j-i-1;
-	P[k] = (T[i]*T[j]*D[k]);
+    // DIRECTED -- not only for i<j, do all pairs i!=j
+    for(i=0;i<n;i++) {
+      for(j=0;j<n;j++) {
+	if(i!=j) {
+	  k = (n-1)*i+j-(int)(j>i);
+	  a = min(i,j);
+	  b = max(i,j);
+	  l = n*a-a*(a+1)/2+b-a-1;
+	  P[k] = (Tin[i]*Tout[j]*D[l]);
+	}
       }
     }
     
-    
-    // 3.3 Compute B-vector given P[] and comm[] 
+    // 3.3 Compute B-vector given P[] and comm[]
+    // DIRECTED -- again consider both i<j, i>j
     for(i=0;i<vect_len;i++) vect_B[i] = 0.0;
-    for(i=0;i<(n-1);i++) {
-      for(j=i+1;j<n;j++) {
-	k = min(comm[i],comm[j]);
-	l = max(comm[i],comm[j]);
-	m = n_parts*k-k*(k-1)/2+l-k;
-	vect_B[m] += myProb(P,n,i,j);
+    for(i=0;i<n;i++) {
+      for(j=0;j<n;j++) {
+	if(i!=j) {
+	  m = comm[i]*n_parts + comm[j];
+	  vect_B[m] += myProb(P,n,i,j);
+	}
       }
     }
-
+    
     // 3.4 JS score -- keep best score
     f = (JS(vect_C, vect_B, vect_I, 1, vect_len) + JS(vect_C, vect_B, vect_I, 0, vect_len))/2.0;
     // f = JS(vect_C, vect_B, NULL, NULL, vect_len);
@@ -358,12 +413,14 @@ int main(int argc, char *argv[]) {
       best_alpha = alpha;
     }
   }
-
   printf("Divergence: %e\n",best_div);
 
+ 
+  // ************************************************************************
+  // hidden -- get _probas (for debug) and _entropy (anomaly detection)
+  // ************************************************************************
   if(entropy) {
-    // ************************************************************************
-    // REPEAT 3.0 with best_alpha  
+    // REPEAT 3.0 with best_alpha (cut and paste from above code)  
     alpha = best_alpha;
     
     // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
@@ -385,69 +442,102 @@ int main(int argc, char *argv[]) {
 	D[k] = pow(1-D[k],alpha); // transform w.r.t. alpha
       }
     }
-    
-    
+        
     // 3.2 Learn GCL model numerically
     
-    // 3.2.1 LOOP: compute T[] given: degree[] D[] epsilon delta
-    for(i=0;i<n;i++) T[i]=1.0;
+    // 3.2.1 LOOP: 
+    for(i=0;i<n;i++) {
+      if(deg_in[i]==0) {
+	Tin[i]=0.0;
+      }
+      else {
+	Tin[i]=1.0;
+      }
+      if(deg_out[i]==0) {
+	Tout[i]=0.0;
+      }
+      else {
+	Tout[i]=1.0;
+      }
+    }
     diff = 1.0;
-    lo = 0;
     while(diff > delta) { // stopping criterion
-      for(i=0;i<n;i++) S[i]=0.0;
+      for(i=0;i<n;i++) {
+	Sin[i]=0.0;
+	Sout[i]=0.0;
+      }
       k = 0;
       for(i=0;i<(n-1);i++) {
 	for(j=i+1;j<n;j++) {
-	  S[i] += (T[i]*T[j]*D[k]);
-	  S[j] += (T[j]*T[i]*D[k]);
+	  Sin[i] += (Tin[i]*Tout[j]*D[k]);
+	  Sin[j] += (Tin[j]*Tout[i]*D[k]);
+	  Sout[i] += (Tout[i]*Tin[j]*D[k]);
+	  Sout[j] += (Tout[j]*Tin[i]*D[k]);
 	  k++;
 	}
       }
       f = 0.0;
+      
       for(i=0;i<n;i++) {
-	move = epsilon*T[i]*(degree[i]/S[i]-1.0); 
-	T[i]+=move;
-	f = max(f,fabs(degree[i]-S[i])); // convergence w.r.t. degrees
+	if(deg_in[i]>0){
+	  move = epsilon*Tin[i]*(deg_in[i]/Sin[i]-1.0); 
+	  Tin[i]+=move;
+	  f = max(f,fabs(deg_in[i]-Sin[i])); // convergence w.r.t. degrees
+	}
+	if(deg_out[i]>0){
+	  move = epsilon*Tout[i]*(deg_out[i]/Sout[i]-1.0); 
+	  Tout[i]+=move;
+	  f = max(f,fabs(deg_out[i]-Sout[i])); // convergence w.r.t. degrees
+	}
       }
       diff = f;
-      lo++;
     }
     
     // 3.2.2 Compute probas P[]
     fp = fopen("_probas","w");
-    for(i=0;i<(n-1);i++) {
-      for(j=i+1;j<n;j++) {
-	k = n*i-i*(i+1)/2+j-i-1;
-	P[k] = (T[i]*T[j]*D[k]);
-	fprintf(fp,"%d %d %f\n",i,j,P[k]);
+    for(i=0;i<n;i++) {
+      for(j=0;j<n;j++) {
+	if(i!=j) {
+	  k = (n-1)*i+j-(int)(j>i);
+	  a = min(i,j);
+	  b = max(i,j);
+	  l = n*a-a*(a+1)/2+b-a-1; // index for D
+	  P[k] = (Tin[i]*Tout[j]*D[l]);
+	  // OUTPUT: i->j, out_degree_i, in_degree_j, edge probability 
+	  fprintf(fp,"%d %d %d %d %f\n",i,j,deg_out[i],deg_in[j],P[k]);
+	}
       }
     }
     fclose(fp);
     
-    // compute comm dist for each node in turn + entropy
-    
+    // compute community probability sums for each node in turn + entropy
+    // OUTPUT: node, entropy, probabilities toward each community (normalized sums)
     fp = fopen("_entropy","w");
     if(fp==NULL) {
       printf("Failed to open _entropy\n");
       exit(-1);
     }
-    
     for(i=0;i<n;i++) {
       Q = (double *)malloc(n_parts*sizeof(double));
       for(j=0;j<n_parts;j++) Q[j]=0;
-      for(j=0;j<i;j++)
-	Q[comm[j]] += myProb(P,n,j,i);
-      for(j=i+1;j<n;j++)
-	Q[comm[j]] += myProb(P,n,i,j);
+      for(j=0;j<n;j++)
+	if(i!=j){
+	  // consider both directions
+	  Q[comm[j]] += myProb(P,n,i,j);
+	  Q[comm[j]] += myProb(P,n,j,i);
+	}
       fprintf(fp,"%d",i);
+      // normlize probas
       sm = 0;
       for(j=0;j<n_parts;j++)
 	sm += Q[j];
       for(j=0;j<n_parts;j++)
 	Q[j] /= sm;
+      // entropy
       sm = 0;
       for(j=0;j<n_parts;j++)
 	sm = sm - Q[j]*log(Q[j]);
+      // print
       fprintf(fp,",%f",sm);
       for(j=0;j<n_parts;j++)
 	fprintf(fp,",%f",Q[j]);
@@ -456,14 +546,18 @@ int main(int argc, char *argv[]) {
     fclose(fp);
     free(Q);
   }
-  
-  // 4. clean all and return final score to stdout
+
+  // 4. clean all
   for(i=0;i<n;i++) free(embed[i]);
   free(embed);
   free(vect_C);
   free(vect_B);
-  free(T);
-  free(S);
+  free(Tin);
+  free(Tout);
+  free(Sin);
+  free(Sout);
+  free(deg_in);
+  free(deg_out);
   free(D);
   free(P);
   // fprintf(stdout,"%lf %e",best_alpha,best_div);
