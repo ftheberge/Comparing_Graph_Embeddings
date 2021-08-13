@@ -100,8 +100,8 @@ int main(int argc, char *argv[]) {
   // DIRECTED -- from T and S to Tin, Tout, Sin, Sout
   double **embed, *P, *D, *Tin, *Tout, *Sin, *Sout, *vect_C, *vect_B, *vect_p, *vect_q, *vect_m, *Q; 
   char str[256], *fn_edges, *fn_comm, *fn_embed;
-  int opt, verbose=0, *vect_I, entropy=0;  
-  double epsilon=0.1, delta=0.001, AlphaMax=10.0, AlphaStep=0.25; // default parameter values
+  int opt, verbose=0, *vect_I, entropy=0, jsd_split=0, no_improvement=0, compute_proba=0;  
+  double epsilon=0.1, delta=0.001, AlphaMax=20.0, AlphaStep=0.5; // default parameter values
   
   // randomized start
 #ifdef WIN32
@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   // read in edgelist and communities filenames
-  while ((opt = getopt(argc, argv, "g:c:e:d:vEa:s:")) != -1) {
+  while ((opt = getopt(argc, argv, "g:c:e:d:vESPa:s:")) != -1) {
     switch (opt) {
     case 'a':
       AlphaMax = atof(optarg);
@@ -136,6 +136,12 @@ int main(int argc, char *argv[]) {
       break;
     case 'E': // 'hidden' option, will return list of probas and entropy for anomaly detection
       entropy=1;
+      break;
+    case 'S': // split JS divergence in two parts
+      jsd_split=1;
+      break;
+    case 'P': // output probabilities
+      compute_proba=1;
       break;
     default: /* '?' */
       printf("Usage: %s -g graph_edgelist -c communities -e embedding [-a alpha_max -s epsilon_step -d delta -v -E]\n\n",argv[0]);
@@ -300,6 +306,22 @@ int main(int argc, char *argv[]) {
   if(verbose) printf("Embedding has %d dimensions\n",dim);
 
   // 3.0 set up loop over alpha's      
+  // Initialize Tin/Tout to 0 if degree is 0 in which case we get Sin or Sout == 0 so we should NOT update Tin or Tout to avoid div by 0  
+  for(i=0;i<n;i++) {
+    if(deg_in[i]==0) {
+      Tin[i]=0.0;
+    }
+    else {
+      Tin[i]=1.0;
+    }
+    if(deg_out[i]==0) {
+      Tout[i]=0.0;
+    }
+    else {
+      Tout[i]=1.0;
+    }
+  }
+  
   for(alpha=AlphaStep; alpha<=AlphaMax+delta; alpha+=AlphaStep) {
     
     // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
@@ -328,21 +350,6 @@ int main(int argc, char *argv[]) {
     // 3.2.1 LOOP: compute T[] given: degree[] D[] epsilon delta
     // DIRECTED -- use Tin, Tout, deg_in, deg_out, Sin, Sout
     // for D, recall that Dij == Dji; we stored Dij for all i<j
-    // Initialize Tin/Tout to 0 if degree is 0 in which case we get Sin or Sout == 0 so we should NOT update Tin or Tout to avoid div by 0  
-    for(i=0;i<n;i++) {
-      if(deg_in[i]==0) {
-	Tin[i]=0.0;
-      }
-      else {
-	Tin[i]=1.0;
-      }
-      if(deg_out[i]==0) {
-	Tout[i]=0.0;
-      }
-      else {
-	Tout[i]=1.0;
-      }
-    }
     
     diff = 1.0;
     while(diff > delta) { // stopping criterion
@@ -381,6 +388,10 @@ int main(int argc, char *argv[]) {
 
     // 3.2.2 Compute probas P[]
     // DIRECTED -- not only for i<j, do all pairs i!=j
+    k = (int)100*alpha;
+    sprintf(str,"_proba_%d",k);
+    if(compute_proba==1)
+      fp = fopen(str,"w");
     for(i=0;i<n;i++) {
       for(j=0;j<n;j++) {
 	if(i!=j) {
@@ -389,9 +400,15 @@ int main(int argc, char *argv[]) {
 	  b = max(i,j);
 	  l = n*a-a*(a+1)/2+b-a-1;
 	  P[k] = (Tin[i]*Tout[j]*D[l]);
+	  // OUTPUT: i->j, out_degree_i, in_degree_j, edge probability 
+	  if(compute_proba==1)
+	    fprintf(fp,"%d %d %d %d %f %d %d\n",i,j,deg_out[i],deg_in[j],P[k],comm[i],comm[j]);
 	}
+	
       }
     }
+    if(compute_proba==1)
+      fclose(fp);
     
     // 3.3 Compute B-vector given P[] and comm[]
     // DIRECTED -- again consider both i<j, i>j
@@ -406,13 +423,36 @@ int main(int argc, char *argv[]) {
     }
     
     // 3.4 JS score -- keep best score
-    f = (JS(vect_C, vect_B, vect_I, 1, vect_len) + JS(vect_C, vect_B, vect_I, 0, vect_len))/2.0;
-    // f = JS(vect_C, vect_B, NULL, NULL, vect_len);
+    if(jsd_split)
+      f = (JS(vect_C, vect_B, vect_I, 1, vect_len) + JS(vect_C, vect_B, vect_I, 0, vect_len))/2.0;
+    else
+      f = JS(vect_C, vect_B, NULL, -1, vect_len);
     if(f < best_div) {
       best_div = f;
       best_alpha = alpha;
+      no_improvement=0;
+      if(verbose) {
+	for(i=0;i<vect_len;i++) printf("%.4f ",vect_C[i]);
+	printf("\n");
+	for(i=0;i<vect_len;i++) printf("%.4f ",vect_B[i]);
+	printf("\n");
+      }
+	
     }
+    else
+      no_improvement++;
+    
+    // break early if no improvement for 3 steps
+    if(no_improvement>2)
+      if(compute_proba==0)
+	break;       
   }
+  
+  if(verbose) {
+ 	for(i=0;i<vect_len;i++) printf("%d ",vect_I[i]);
+	printf("\n");
+      }
+   
   printf("Divergence: %e\n",best_div);
 
  
