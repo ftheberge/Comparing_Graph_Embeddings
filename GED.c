@@ -386,7 +386,8 @@ int main(int argc, char *argv[]) {
       break;    
   }
 
-  printf("Divergence: %e, alpha: %e\n",best_div, best_alpha);
+  // printf("Divergence: %e, alpha: %e\n",best_div, best_alpha);
+  printf("Divergence: %e\n",best_div);
 
   if(entropy) {
     // ************************************************************************

@@ -98,10 +98,10 @@ int main(int argc, char *argv[]) {
   FILE *fp, *fpa;
   int **edge, *comm, *deg_in, *deg_out;
   // DIRECTED -- from T and S to Tin, Tout, Sin, Sout
-  double **embed, *P, *D, *Tin, *Tout, *Sin, *Sout, *vect_C, *vect_B, *vect_p, *vect_q, *vect_m, *Q; 
+  double **embed, *P, *D, *Dst, *Tin, *Tout, *Sin, *Sout, *vect_C, *vect_B, *vect_p, *vect_q, *vect_m, *Q; 
   char str[256], *fn_edges, *fn_comm, *fn_embed;
   int opt, verbose=0, *vect_I, entropy=0, jsd_split=0, no_improvement=0, compute_proba=0;  
-  double epsilon=0.1, delta=0.001, AlphaMax=20.0, AlphaStep=0.5; // default parameter values
+  double epsilon=0.25, delta=0.001, AlphaMax=10.0, AlphaStep=0.5; // default parameter values
   
   // randomized start
 #ifdef WIN32
@@ -264,6 +264,7 @@ int main(int argc, char *argv[]) {
   // DIRECTED -- D remains with same length since Dij == Dji
   p_len = (n-1)*(n)/2;
   D = malloc(sizeof(double)*p_len);
+  Dst = malloc(sizeof(double)*p_len);
   // DIRECTED -- P needs twice the length 
   P = malloc(sizeof(double)*(2*p_len));
   
@@ -321,26 +322,27 @@ int main(int argc, char *argv[]) {
       Tout[i]=1.0;
     }
   }
+
+  // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
+  // DIRECTED -- Dij == Dji so no change here
+  lo = 10000; hi=0;
+  for(i=0;i<(n-1);i++) {
+    for(j=i+1;j<n;j++) {	
+      f = dist(i,j,dim,embed); 
+      if(f<lo) lo=f;
+      if(f>hi) hi=f;
+      k = n*i-i*(i+1)/2+j-i-1;
+      Dst[k] = f; 
+    }
+  }
   
   for(alpha=AlphaStep; alpha<=AlphaMax+delta; alpha+=AlphaStep) {
     
-    // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
-    // DIRECTED -- Dij == Dji so no change here
-    lo = 10000; hi=0;
-    for(i=0;i<(n-1);i++) {
-      for(j=i+1;j<n;j++) {	
-	f = dist(i,j,dim,embed); 
-	if(f<lo) lo=f;
-	if(f>hi) hi=f;
-	k = n*i-i*(i+1)/2+j-i-1;
-	D[k] = f; 
-      }
-    }
-    // ... and apply kernel
+    // apply kernel
     for(i=0;i<(n-1);i++) {
       for(j=i+1;j<n;j++) {	
 	k = n*i-i*(i+1)/2+j-i-1;
-	D[k] = (D[k]-lo)/(hi-lo); // normalize to [0,1]
+	D[k] = (Dst[k]-lo)/(hi-lo); // normalize to [0,1]
 	D[k] = pow(1-D[k],alpha); // transform w.r.t. alpha
       }
     }
@@ -463,22 +465,11 @@ int main(int argc, char *argv[]) {
     // REPEAT 3.0 with best_alpha (cut and paste from above code)  
     alpha = best_alpha;
     
-    // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
-    lo = 10000; hi=0;
-    for(i=0;i<(n-1);i++) {
-      for(j=i+1;j<n;j++) {	
-	f = dist(i,j,dim,embed); 
-	if(f<lo) lo=f;
-	if(f>hi) hi=f;
-	k = n*i-i*(i+1)/2+j-i-1;
-	D[k] = f; 
-      }
-    }
-    // ... and apply kernel
+    // apply kernel
     for(i=0;i<(n-1);i++) {
       for(j=i+1;j<n;j++) {	
 	k = n*i-i*(i+1)/2+j-i-1;
-	D[k] = (D[k]-lo)/(hi-lo); // normalize to [0,1]
+	D[k] = (Dst[k]-lo)/(hi-lo); // normalize to [0,1]
 	D[k] = pow(1-D[k],alpha); // transform w.r.t. alpha
       }
     }
@@ -599,6 +590,7 @@ int main(int argc, char *argv[]) {
   free(deg_in);
   free(deg_out);
   free(D);
+  free(Dst);
   free(P);
   // fprintf(stdout,"%lf %e",best_alpha,best_div);
   if(verbose) {
