@@ -2,6 +2,10 @@
 
 Can be found here: https://github.com/KrainskiL/CGE.jl
 
+The version here is for undiredted, unweighted graphs. Moreover, the underlying model
+assumes no loops (self-edges). The landmark-based version allows for weights and loops,
+so numerical results can be slightly different.
+
 # Comparing Graph Embeddings
 
 We propose a framework to compare the quality of graph embeddings obtained with
@@ -55,6 +59,7 @@ Format:
 -a: maximum value of alpha to consider (default 10.0)
 -s: epsilon step (default 0.01)
 -d: delta, stopping criterion (default 0.001)
+-S: split and average the divergence measures (between and within communities respectively)
 -v: verbose 
 ```
 
@@ -71,31 +76,31 @@ The code can be found here: https://github.com/ftheberge/graph-partition-and-mea
 
 ```
 ./GED -g Data/karate.edgelist -c Data/karate.ecg -e Data/karate.embedding.1
-Divergence: 8.382983e-04
+Divergence: 3.812441e-03
 
 ./GED -g Data/karate.edgelist -c Data/karate.ecg -e Data/karate.embedding.2
-Divergence: 1.754249e-03
+Divergence: 6.264916e-03
 
 ./GED -g Data/karate.edgelist -c Data/karate.ecg -e Data/karate.embedding.3
-Divergence: 1.641147e-02
+Divergence: 6.616485e-02
 
 ./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -e Data/lfr15.embedding.1
-Divergence: 3.881068e-04
+Divergence: 2.288896e-04
 
 ./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -e Data/lfr15.embedding.2
-Divergence: 7.880778e-03
+Divergence: 4.494973e-02
 
 ./GED -g Data/lfr15.edgelist -c Data/lfr15.ecg -e Data/lfr15.embedding.3
-Divergence: 1.273756e-02
+Divergence: 1.196148e-01
 
 ./GED -g Data/football.edgelist -c Data/football.ecg -e Data/football.embedding.1
-Divergence: 2.881708e-03
+Divergence: 2.689874e-03
 
 ./GED -g Data/football.edgelist -c Data/football.ecg -e Data/football.embedding.2
-Divergence: 1.208909e-02
+Divergence: 2.464403e-02
 
 ./GED -g Data/football.edgelist -c Data/football.ecg -e Data/football.embedding.3
-Divergence: 2.737682e-02
+Divergence: 3.643811e-02
 ```
 
 # File Formats
@@ -110,7 +115,7 @@ Three input files are required to run GED:
 ## Example of graph (edgelist) file
 
 Nodes can be 0-based or 1-based  
-One edge per line with whitespace between nodes  
+One edge per line with whitespace between nodes, no weights (so only 2 columns)
 
 ```
 1 32
