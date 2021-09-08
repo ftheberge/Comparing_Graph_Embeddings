@@ -1,5 +1,14 @@
 // gcc GED.c -o GED -lm -O3
 
+// ********************************************************
+// This code expects 2 columns data (edges), so no weights
+// JSD is NOT splitted unless -S is used
+// This GCL model assumes NO loops, so
+// to compare with landmark-based version, some
+// changes need to be made (see comments with "// NOTE")
+// nb: we break early if no improvement for 3 steps
+// ********************************************************
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -25,12 +34,14 @@ double dist(int i, int j, int dim, double **embed) {
   return(sqrt(f)); 
 }
 
+// ********************************************************
 // Jensen-Shannon divergence with Dirichlet-like prior to handle 0's
 // vC, vB : C-vector and B-vector we are comparing
 // vI: indicator 1=internal, 0=external w.r.t. communities
 // internal: if 1 return internal, if 0 return external JS distance
 // if vI == internal == NULL, compute overall JS distance (ignore internal/external)
 // vLen: length of the above
+// ********************************************************
 double JS(double *vC, double *vB, int *vI, int internal, int vLen) {
   double f,*vect_p,*vect_q,*vect_m;
   int i;
@@ -93,12 +104,12 @@ int main(int argc, char *argv[]) {
   double f,lo,hi,best_div,best_alpha,alpha,diff,move,sm;
   FILE *fp, *fpa;
   int **edge, *comm, *degree;
-  double **embed,*P,*D,*T,*S, *vect_C, *vect_B, *vect_p, *vect_q, *vect_m, *Q;
+  double **embed,*P,*D,*Dst,*T,*S, *vect_C, *vect_B, *vect_p, *vect_q, *vect_m, *Q;
   char str[256], *fn_edges, *fn_comm, *fn_embed;
   int opt, verbose=0, *vect_I, entropy=0, jsd_split=0, no_improvement=0;  
-  double epsilon=0.1, delta=0.001, AlphaMax=10.0, AlphaStep=0.25; // default parameter values
+  double epsilon=0.25, delta=0.001, AlphaMax=10.0, AlphaStep=0.5; // default parameter values
   
-  // randomized start
+// randomized start
 #ifdef WIN32
   srand((long)time(NULL));
 #else
@@ -157,7 +168,7 @@ int main(int argc, char *argv[]) {
   // count number of edges and keep track of min/max vertex
   v_max = -1;
   v_min = INT_MAX;
-  while (fscanf(fp,"%d %d",&a,&b) == 2) {
+  while (fscanf(fp,"%d %d",&a,&b) == 2) { // NOTE: add &*d if 3 columns
     n_edge++;
     v_max = max(v_max,max(a,b));
     v_min = min(v_min,min(a,b));
@@ -171,7 +182,7 @@ int main(int argc, char *argv[]) {
   for(i=0; i<n_edge; i++)
     edge[i] = malloc(sizeof(int)*2);
   i = 0;
-  while (fscanf(fp,"%d %d",&a,&b) == 2) {
+  while (fscanf(fp,"%d %d",&a,&b) == 2) { // NOTE: add &*d if 3 columns
     edge[i][0] = a-v_min;
     edge[i++][1] = b-v_min;
   }
@@ -243,6 +254,7 @@ int main(int argc, char *argv[]) {
   S = malloc(sizeof(double)*n);
   p_len = (n-2)*(n+1)/2+1;
   D = malloc(sizeof(double)*p_len);
+  Dst = malloc(sizeof(double)*p_len);
   P = malloc(sizeof(double)*p_len);
   
   // 2. Read embedding in node2vec format:
@@ -285,35 +297,39 @@ int main(int argc, char *argv[]) {
 
   // 3.0 set up loop over alpha's
   for(i=0;i<n;i++) T[i]=1.0; // do only once, then use previous values
-  for(alpha=0; alpha<=AlphaMax+delta; alpha+=AlphaStep) { // start at 0 really??
-    
-    // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
-    lo = 10000; hi=0;
-    for(i=0;i<(n-1);i++) {
-      for(j=i+1;j<n;j++) {	
-	f = dist(i,j,dim,embed); 
-	if(f<lo) lo=f;
-	if(f>hi) hi=f;
-	k = n*i-i*(i+1)/2+j-i-1;
-	D[k] = f; 
-      }
+
+  // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
+  lo = 10000; hi=0;
+  for(i=0;i<(n-1);i++) {
+    for(j=i+1;j<n;j++) {	
+      f = dist(i,j,dim,embed); 
+      if(f<lo) lo=f;
+      if(f>hi) hi=f;
+      k = n*i-i*(i+1)/2+j-i-1;
+      Dst[k] = f; 
     }
-    // ... and apply kernel
+  }
+  
+  // NOTE: with landmark version, loops imply lo = 0
+  // lo = 0;
+  
+  for(alpha=AlphaStep; alpha<=AlphaMax+delta; alpha+=AlphaStep) { 
+
+    if(verbose) printf("alpha:%f\n",alpha);
+  
+    // apply alpha-kernel
     for(i=0;i<(n-1);i++) {
       for(j=i+1;j<n;j++) {	
 	k = n*i-i*(i+1)/2+j-i-1;
-	D[k] = (D[k]-lo)/(hi-lo); // normalize to [0,1]
+	D[k] = (Dst[k]-lo)/(hi-lo); // normalize to [0,1]
 	D[k] = pow(1-D[k],alpha); // transform w.r.t. alpha
       }
     }
     
-
     // 3.2 Learn GCL model numerically
 
     // 3.2.1 LOOP: compute T[] given: degree[] D[] epsilon delta
-    // for(i=0;i<n;i++) T[i]=1.0;
     diff = 1.0;
-    lo = 0;
     while(diff > delta) { // stopping criterion
       for(i=0;i<n;i++) S[i]=0.0;
       k = 0;
@@ -331,7 +347,6 @@ int main(int argc, char *argv[]) {
 	f = max(f,fabs(degree[i]-S[i])); // convergence w.r.t. degrees
       }
       diff = f;
-      lo++;
     }
 
     // 3.2.2 Compute probas P[]
@@ -341,8 +356,7 @@ int main(int argc, char *argv[]) {
 	P[k] = (T[i]*T[j]*D[k]);
       }
     }
-    
-    
+       
     // 3.3 Compute B-vector given P[] and comm[] 
     for(i=0;i<vect_len;i++) vect_B[i] = 0.0;
     for(i=0;i<(n-1);i++) {
@@ -372,29 +386,18 @@ int main(int argc, char *argv[]) {
       break;    
   }
 
-  printf("Divergence: %e\n",best_div);
+  printf("Divergence: %e, alpha: %e\n",best_div, best_alpha);
 
   if(entropy) {
     // ************************************************************************
     // REPEAT 3.0 with best_alpha  
     alpha = best_alpha;
     
-    // 3.1 compute Euclidean distance vector D[] given embed[][] and alpha
-    lo = 10000; hi=0;
-    for(i=0;i<(n-1);i++) {
-      for(j=i+1;j<n;j++) {	
-	f = dist(i,j,dim,embed); 
-	if(f<lo) lo=f;
-	if(f>hi) hi=f;
-	k = n*i-i*(i+1)/2+j-i-1;
-	D[k] = f; 
-      }
-    }
-    // ... and apply kernel
+    // apply kernel
     for(i=0;i<(n-1);i++) {
       for(j=i+1;j<n;j++) {	
 	k = n*i-i*(i+1)/2+j-i-1;
-	D[k] = (D[k]-lo)/(hi-lo); // normalize to [0,1]
+	D[k] = (Dst[k]-lo)/(hi-lo); // normalize to [0,1]
 	D[k] = pow(1-D[k],alpha); // transform w.r.t. alpha
       }
     }
@@ -478,6 +481,7 @@ int main(int argc, char *argv[]) {
   free(T);
   free(S);
   free(D);
+  free(Dst);
   free(P);
   // fprintf(stdout,"%lf %e",best_alpha,best_div);
   if(verbose) {
