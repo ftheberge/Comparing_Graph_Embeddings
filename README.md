@@ -2,7 +2,7 @@
 
 Can be found here: https://github.com/KrainskiL/CGE.jl
 
-The version here is for undiredted, unweighted graphs. Moreover, the underlying model
+The version here is for undirected, unweighted graphs. Moreover, the underlying model
 assumes no loops (self-edges). The landmark-based version allows for weights and loops,
 so numerical results can be slightly different.
 
